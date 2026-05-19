@@ -25,6 +25,10 @@ class Player(pygame.sprite.Sprite):
         self.rect.center = (150, HEIGHT // 2)
         self.vy = 0.0 # Y方向の落下速度
 
+        #透明化状態
+        self.transparent = False
+        self.transparent_timer = 0
+
     def update(self) -> None:
         """
         重力による落下処理
@@ -32,13 +36,28 @@ class Player(pygame.sprite.Sprite):
         self.vy += 0.5 
         self.rect.y += int(self.vy)
 
+     #透明化タイマー
+        if self.transparent:
+            self.transparent_timer -= 1
+
+            if self.transparent_timer <= 0:
+                self.transparent = False
+                self.image.set_alpha(255)
+
+
     def jump(self) -> None:
         """
         スペースキー押下によるジャンプ処理
         """
         self.vy = -8.0 
 
-
+    def activate_transparent(self) -> None:
+        """
+        透明化開始
+        """
+        self.transparent = True
+        self.transparent_timer = 300
+        self.image.set_alpha(128)
 class Obstacle(pygame.sprite.Sprite):
     """
     障害物に関するクラス
@@ -59,6 +78,35 @@ class Obstacle(pygame.sprite.Sprite):
             self.kill() # 画面外に出たらグループから削除
 
 
+"""
+透明化アイテム
+"""
+class TransparentItem(pygame.sprite.Sprite):
+    """
+    一定時間無敵になるのアイテム
+    """
+    def __init__(self) -> None:
+        super().__init__()
+
+        #青い四角
+        self.image = pygame.Surface((30, 30))
+        self.image.fill((0,0,255))
+
+        self.rect = self.image.get_rect()
+        self.rect.center = (
+            WIDTH,
+            random.randint(50, HEIGHT -50)
+        )
+
+    def update(self) -> None:
+        """
+        左へ移動
+       """
+        self.rect.x -= 5
+        if self.rect.right < 0:
+            self.kill()    
+
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -68,6 +116,7 @@ def main():
     # Sprite Groupの初期化
     all_sprites = pygame.sprite.Group()
     obstacles = pygame.sprite.Group()
+    items = pygame.sprite.Group()
 
     # 主人公の生成
     player = Player()
@@ -76,6 +125,10 @@ def main():
     # 障害物生成用のカスタムイベント
     SPAWN_OBSTACLE = pygame.USEREVENT + 1
     pygame.time.set_timer(SPAWN_OBSTACLE, 1500) 
+
+    #アイテム生成イベント
+    SPAWN_ITEM = pygame.USEREVENT +2
+    pygame.time.set_timer(SPAWN_ITEM, 5000)
 
     running = True
     while running:
@@ -99,13 +152,23 @@ def main():
                 obstacles.add(top_obs, bottom_obs)
                 all_sprites.add(top_obs, bottom_obs)
 
+
+            #アイテム生成    
+            if event.type == SPAWN_ITEM:
+                item = TransparentItem()
+                items.add(item)
+                all_sprites.add(item)
+
         all_sprites.update()
 
+        if pygame.sprite.spritecollide(player, items, True):
+            player.activate_transparent()
+
         # こうかとんと障害物の当たり判定、および画面上下端の判定
-        if pygame.sprite.spritecollide(player, obstacles, False) \
-           or player.rect.top < 0 or player.rect.bottom > HEIGHT:
-            # 共通基本機能では、衝突時にそのままループを抜けて終了する
-            running = False
+        if not player.transparent:
+            if pygame.sprite.spritecollide(player, obstacles, False) \
+            or player.rect.top < 0 or player.rect.bottom > HEIGHT:
+                running = False
 
         # 背景と全Spriteの描画
         screen.fill((135, 206, 235)) # ※背景画像がある場合は blit に変更
