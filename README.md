@@ -29,4 +29,4 @@
 ### ToDo
 - 時間経過による速度up
 
-![title](figscreen_shot.png)
+![title](fig/screen_shot.png)
