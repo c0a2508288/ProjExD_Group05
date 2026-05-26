@@ -12,7 +12,6 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 WIDTH = 800
 HEIGHT = 600
 
-
 class Player(pg.sprite.Sprite):
     """
     主人公キャラクター（こうかとん）
