@@ -1,4 +1,8 @@
-import pygame
+"""
+重力アクションゲーム（フラッピーバード風）のベースコード
+"""
+
+import pygame as pg
 import sys
 import random
 
@@ -6,16 +10,15 @@ import random
 WIDTH = 800
 HEIGHT = 600
 
-
-class Player(pygame.sprite.Sprite):
+class Player(pg.sprite.Sprite):
     """
     主人公キャラクター（こうかとん）に関するクラス
     """
     def __init__(self) -> None:
         super().__init__()
         # ※実際の画像ファイルがある場合は以下のコメントアウトを外して差し替える
-        self.image = pygame.image.load("ex5/fig/3.png")
-        self.image = pygame.transform.flip(self.image, True, False)
+        self.image = pg.image.load("ex5/fig/3.png")
+        self.image = pg.transform.flip(self.image, True, False)
         
         self.rect = self.image.get_rect()
         self.rect.center = (150, HEIGHT // 2)
@@ -33,17 +36,16 @@ class Player(pygame.sprite.Sprite):
         スペースキー押下によるジャンプ処理
         """
         self.vy = -8.0 
-
-
+        
 class Score():
     """
     スコア管理に関するクラス
     """
     def __init__(self):
-        self.font = pygame.font.Font(None, 50)
+        self.font = pg.font.Font(None, 50)
         self.color = (255, 255, 255) # 白色
         self.bonus_color = (255, 215, 0) # 金色（3倍時用）
-        self.value = 0
+        self.value = 0.0
         self.image = self.font.render(f"Score: {int(self.value)}", 0, self.color)
         self.rect = self.image.get_rect()
         self.rect.center = (100,50)
@@ -52,7 +54,7 @@ class Score():
         self.multiplier = 1
         self.multiplier_timer = 0 # フレーム数で時間を管理 (60フレーム = 1秒)
     
-    def update(self, screen: pygame.Surface):
+    def update(self, screen: pg.Surface):
         # 3倍タイマーのカウントダウン
         if self.multiplier_timer > 0:
             self.multiplier_timer -= 1
@@ -84,14 +86,61 @@ class Score():
         self.multiplier = multiplier
         self.multiplier_timer = duration_sec * 60 # 60fps想定
 
+class Item(pg.sprite.Sprite):
+    """
+    アイテムに関する親クラス
+    他のアイテム実装時もこのクラスを継承する
+    """
+    def __init__(self, x:int, y: int, color: tuple) -> None:
+        super().__init__()
+        self.image = pg.Surface((30,30),pg.SRCALPHA)
+        pg.draw.circle(self.image, color, (15,15), 15)
+        self.rect = self.image.get_rect()
+        self.rect.center = (x,y)
+    
+    def update(self) -> None:
+        """
+        共通仕様:障害物と同じスピードで左へスクロール
+        """
+        self.rect.x -= 5
+        if self.rect.right < 0:
+            self.kill()
+    
+    def activate(self, score: Score) -> None:
+        """
+        アイテムを拾った時の効果(子クラスごとに処理を上書き)
+        """
+        pass
+class CoinItem(Item):
+    """
+    獲得時スコアが1000増加するアイテム
+    """
+    def __init__(self, x:int, y:int) -> None:
+        super().__init__(x,y,(255,215,0))
+    
+    def activate(self, score: Score) -> None:
+        #コインの効果:スコアを1000増加
+        score.value += 1000
 
-class Obstacle(pygame.sprite.Sprite):
+class sanbai(Item):
+    """
+    スコア3倍アイテムに関するクラス
+    """
+    def __init__(self, x:int, y:int) -> None:
+        super().__init__(x, y,(255,0,0))
+        self.image = pg.Surface((30, 30))
+        self.image.fill((255, 0, 0))  # スコア3倍は赤色のダミー四角形
+        self.rect = self.image.get_rect(center = (x,y))
+    
+    def activate(self, score: Score):
+        score.activate_multiplier(3,10)
+class Obstacle(pg.sprite.Sprite):
     """
     障害物に関するクラス
     """
     def __init__(self, x: int, y: int, width: int, height: int) -> None:
         super().__init__()
-        self.image = pygame.Surface((width, height))
+        self.image = pg.Surface((width, height))
         self.image.fill((0, 255, 0)) # 緑色のダミー四角形
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
@@ -105,96 +154,81 @@ class Obstacle(pygame.sprite.Sprite):
             self.kill() # 画面外に出たらグループから削除
             
             
-def draw_text(screen: pygame.Surface, text: str, size: int, x: int, y: int, color: tuple = (0, 0, 0)) -> None:
+def draw_text(screen: pg.Surface, text: str, size: int, x: int, y: int, color: tuple = (0, 0, 0)) -> None:
     """
     画面にテキストを描画するヘルパー関数
     """
-    font = pygame.font.SysFont(None, size)
+    font = pg.font.SysFont(None, size)
     surface = font.render(text, True, color)
     rect = surface.get_rect()
     rect.center = (x, y)
     screen.blit(surface, rect)
 
 
-class Item(pygame.sprite.Sprite):
-    """
-    スコア3倍アイテムに関するクラス
-    """
-    def __init__(self, x: int, y: int) -> None:
-        super().__init__()
-        self.image = pygame.Surface((30, 30))
-        self.image.fill((255, 0, 0))  # スコア3倍は赤色のダミー四角形
-        self.rect = self.image.get_rect()
-        self.rect.center = (x, y)
-
-    def update(self) -> None:
-        """
-        左方向へのスクロール処理
-        """
-        self.rect.x -= 5 
-        if self.rect.right < 0:
-            self.kill()
-
 
 def main():
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("飛べ！重力こうかとん")
-    clock = pygame.time.Clock()
+    pg.init()
+    screen = pg.display.set_mode((WIDTH, HEIGHT))
+    pg.display.set_caption("飛べ！重力こうかとん")
+    clock = pg.time.Clock()
 
     # Sprite Groupの初期化
-    all_sprites = pygame.sprite.Group()
-    obstacles = pygame.sprite.Group()
-    items = pygame.sprite.Group() # アイテム用のグループ
+    all_sprites = pg.sprite.Group()
+    obstacles = pg.sprite.Group()
+    items = pg.sprite.Group()
 
     # 主人公の生成
     player = Player()
     all_sprites.add(player)
 
     # 障害物生成用のカスタムイベント
-    SPAWN_OBSTACLE = pygame.USEREVENT + 1
-    pygame.time.set_timer(SPAWN_OBSTACLE, 1500)
-    # ADD_SCORE = pygame.USEREVENT + 2
-    # pygame.time.set_timer(ADD_SCORE, 1000)
+    SPAWN_OBSTACLE = pg.USEREVENT + 1
+    pg.time.set_timer(SPAWN_OBSTACLE, 1500)
 
     # アイテム生成用のカスタムイベント（2秒ごとに抽選）
-    SPAWN_ITEM = pygame.USEREVENT + 3
-    pygame.time.set_timer(SPAWN_ITEM, 2000)
+    SPAWN_ITEM = pg.USEREVENT + 3
+    pg.time.set_timer(SPAWN_ITEM, 2000)
 
     # スコアインスタンスの生成
     score = Score()
 
     state = "countdown"   
-    countdown_start_time = pygame.time.get_ticks()
+    countdown_start_time = pg.time.get_ticks()
 
     running = True
     while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
                 running = False
             
             # スペースキー入力時のジャンプ処理
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE and state == "playing":
+            if event.type == pg.KEYDOWN:
+                if event.key == pg.K_SPACE and state == "playing":
                     player.jump()
             
-            # 障害物のランダム生成
+            # 障害物とコインのランダム生成
             if event.type == SPAWN_OBSTACLE and state == "playing":
                 gap_y = random.randint(150, HEIGHT - 150)
                 gap_size = 150
                 
+                #障害物の生成
                 top_obs = Obstacle(WIDTH, 0, 50, gap_y - gap_size // 2)
                 bottom_obs = Obstacle(WIDTH, gap_y + gap_size // 2, 50, HEIGHT - (gap_y + gap_size // 2))
-                
                 obstacles.add(top_obs, bottom_obs)
                 all_sprites.add(top_obs, bottom_obs)
+            
+            #20%の確率で障害物の隙間にコインを生成
+                if random.random() < 0.20:
+                    coin = CoinItem(WIDTH + 25, gap_y)
+                    items.add(coin)
+                    all_sprites.add(coin)
 
             # アイテムのランダム生成
             if event.type == SPAWN_ITEM:
             # 40%の確率で3倍アイテムを生成
                 if random.random() < 0.4:
                     item_y = random.randint(100, HEIGHT - 100)
-                    item = Item(WIDTH, item_y)
+                    item = sanbai(WIDTH, item_y)
                     items.add(item)
                     all_sprites.add(item)
 
@@ -204,7 +238,7 @@ def main():
         if state == "countdown":
             all_sprites.draw(screen)
             
-            now = pygame.time.get_ticks()
+            now = pg.time.get_ticks()
             elapsed = now - countdown_start_time
             
             if elapsed < 1000:
@@ -222,12 +256,12 @@ def main():
             all_sprites.update()
 
             # こうかとんとアイテムの当たり判定（接触時にアイテムを消滅させる）
-            hit_items = pygame.sprite.spritecollide(player, items, True)
+            hit_items = pg.sprite.spritecollide(player, items, True)
             for item in hit_items:
-                score.activate_multiplier(3, 10) # 10秒間スコア3倍を発動
+                item.activate(score) #獲得したアイテムの効果を発動
 
             # こうかとんと障害物の当たり判定、および画面上下端の判定
-            if pygame.sprite.spritecollide(player, obstacles, False) or player.rect.top < 0 or player.rect.bottom > HEIGHT:
+            if pg.sprite.spritecollide(player, obstacles, False) or player.rect.top < 0 or player.rect.bottom > HEIGHT:
                 state = "gameover"
         
             all_sprites.draw(screen)
@@ -238,10 +272,10 @@ def main():
             draw_text(screen, "GAME OVER", 120, WIDTH // 2, HEIGHT // 2 - 50, (255, 0, 0))
             draw_text(screen, f"TOTAL SCORE: {int(score.value)}", 80, WIDTH // 2, HEIGHT // 2 + 50, (255, 255, 255))
         
-        pygame.display.flip()
+        pg.display.flip()
         clock.tick(60)
 
-    pygame.quit()
+    pg.quit()
     sys.exit()
 
 if __name__ == "__main__":
