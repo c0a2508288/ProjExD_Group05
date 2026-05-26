@@ -1,4 +1,4 @@
-import pygame
+import pygame as pg
 import sys
 import random
 
@@ -8,15 +8,15 @@ WIDTH = 800
 HEIGHT = 600
 
 
-class Player(pygame.sprite.Sprite):
+class Player(pg.sprite.Sprite):
     """
     主人公キャラクター（こうかとん）
     """
     def __init__(self) -> None:
         super().__init__()
 
-        self.image = pygame.image.load("fig/3.png")
-        self.image = pygame.transform.flip(self.image, True, False)
+        self.image = pg.image.load("fig/3.png")
+        self.image = pg.transform.flip(self.image, True, False)
 
         self.rect = self.image.get_rect()
         self.rect.center = (150, HEIGHT // 2)
@@ -37,14 +37,14 @@ class Player(pygame.sprite.Sprite):
         self.vy = -8.0
 
 
-class Obstacle(pygame.sprite.Sprite):
+class Obstacle(pg.sprite.Sprite):
     """
     障害物
     """
     def __init__(self, x: int, y: int, width: int, height: int) -> None:
         super().__init__()
 
-        self.image = pygame.Surface((width, height))
+        self.image = pg.Surface((width, height))
         self.image.fill((0, 255, 0))
 
         self.rect = self.image.get_rect()
@@ -60,7 +60,7 @@ class Obstacle(pygame.sprite.Sprite):
             self.kill()
 
 
-class Enemy(pygame.sprite.Sprite):
+class Enemy(pg.sprite.Sprite):
     """
     右から飛んでくる敵
     """
@@ -68,9 +68,9 @@ class Enemy(pygame.sprite.Sprite):
         super().__init__()
 
         # 敵画像
-        self.image = pygame.image.load("fig/6.png")
+        self.image = pg.image.load("fig/6.png")
         # 視認性向上のため拡大
-        self.image = pygame.transform.rotozoom(self.image, 0, 0.6)
+        self.image = pg.transform.rotozoom(self.image, 0, 0.6)
 
         self.rect = self.image.get_rect()
 
@@ -95,7 +95,7 @@ class Enemy(pygame.sprite.Sprite):
 
 
 def draw_text(
-    screen: pygame.Surface,
+    screen: pg.Surface,
     text: str,
     size: int,
     x: int,
@@ -105,7 +105,7 @@ def draw_text(
     """
     テキスト描画
     """
-    font = pygame.font.SysFont(None, size)
+    font = pg.font.SysFont(None, size)
 
     surface = font.render(text, True, color)
 
@@ -116,56 +116,56 @@ def draw_text(
 
 
 def main():
-    pygame.init()
+    pg.init()
 
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("飛べ！重力こうかとん")
+    screen = pg.display.set_mode((WIDTH, HEIGHT))
+    pg.display.set_caption("飛べ！重力こうかとん")
 
-    clock = pygame.time.Clock()
+    clock = pg.time.Clock()
 
     # グループ
-    all_sprites = pygame.sprite.Group()
-    obstacles = pygame.sprite.Group()
-    enemies = pygame.sprite.Group()
+    all_sprites = pg.sprite.Group()
+    obstacles = pg.sprite.Group()
+    enemies = pg.sprite.Group()
 
     # プレイヤー生成
     player = Player()
     all_sprites.add(player)
 
     # 障害物イベント
-    SPAWN_OBSTACLE = pygame.USEREVENT + 1
-    pygame.time.set_timer(SPAWN_OBSTACLE, 1500)
+    SPAWN_OBSTACLE = pg.USEREVENT + 1
+    pg.time.set_timer(SPAWN_OBSTACLE, 1500)
 
     # スコアイベント
-    ADD_SCORE = pygame.USEREVENT + 2
-    pygame.time.set_timer(ADD_SCORE, 1000)
+    ADD_SCORE = pg.USEREVENT + 2
+    pg.time.set_timer(ADD_SCORE, 1000)
 
     # 敵生成イベント
-    SPAWN_ENEMY = pygame.USEREVENT + 3
-    pygame.time.set_timer(SPAWN_ENEMY, 2000)
+    SPAWN_ENEMY = pg.USEREVENT + 3
+    pg.time.set_timer(SPAWN_ENEMY, 2000)
 
     state = "countdown"
 
     score = 0
 
-    countdown_start_time = pygame.time.get_ticks()
-    restart_button_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 150, 200, 60)
+    countdown_start_time = pg.time.get_ticks()
+    restart_button_rect = pg.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 150, 200, 60)
 
     running = True
 
     while running:
 
-        for event in pygame.event.get():
+        for event in pg.event.get():
 
-            if event.type == pygame.QUIT:
+            if event.type == pg.QUIT:
                 running = False
 
             # ジャンプ
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE and state == "playing":
+            if event.type == pg.KEYDOWN:
+                if event.key == pg.K_SPACE and state == "playing":
                     player.jump()
 
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pg.MOUSEBUTTONDOWN:
                 if state == "gameover" and restart_button_rect.collidepoint(event.pos):
                     obstacles.empty()
                     enemies.empty()
@@ -175,7 +175,7 @@ def main():
                     all_sprites.add(player)
                     score = 0
                     state = "countdown"
-                    countdown_start_time = pygame.time.get_ticks()
+                    countdown_start_time = pg.time.get_ticks()
 
             # 障害物生成
             if event.type == SPAWN_OBSTACLE and state == "playing":
@@ -220,7 +220,7 @@ def main():
 
             all_sprites.draw(screen)
 
-            now = pygame.time.get_ticks()
+            now = pg.time.get_ticks()
             elapsed = now - countdown_start_time
 
             if elapsed < 1000:
@@ -273,8 +273,8 @@ def main():
 
             # 当たり判定
             if (
-                pygame.sprite.spritecollide(player, obstacles, False)
-                or pygame.sprite.spritecollide(player, enemies, False)
+                pg.sprite.spritecollide(player, obstacles, False)
+                or pg.sprite.spritecollide(player, enemies, False)
                 or player.rect.top < 0
                 or player.rect.bottom > HEIGHT
             ):
@@ -314,7 +314,7 @@ def main():
                 HEIGHT // 2 + 50,
                 (255, 255, 255)
             )
-            pygame.draw.rect(screen, (30, 144, 255), restart_button_rect)
+            pg.draw.rect(screen, (30, 144, 255), restart_button_rect)
             draw_text(
                 screen,
                 "RESTART",
@@ -324,10 +324,10 @@ def main():
                 (255, 255, 255)
             )
 
-        pygame.display.flip()
+        pg.display.flip()
         clock.tick(60)
 
-    pygame.quit()
+    pg.quit()
     sys.exit()
 
 
